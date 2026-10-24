@@ -338,6 +338,7 @@ def test_missing_user_layout_resolves_versioned_default():
         "edge_probe",
         "quick_launch",
         "balance",
+        "teleagent_balance",
         "harness",
         "deepseek_web",
         "check_update",
@@ -601,6 +602,7 @@ def test_default_layout_populates_real_qmenu_hierarchy(monkeypatch):
     tools = next(action.menu() for action in menu.actions() if action.text() == "工具与帮助")
     expected_tools = [
         "DeepSeek 余额",
+        "星辰余额",
         "DeepSeek Harness",
         "打开网页版 DeepSeek",
         "查看最新动态",

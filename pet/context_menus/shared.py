@@ -945,6 +945,14 @@ def add_balance(menu: QMenu, pet, *, icons: bool = True):
     return add_action(menu, "DeepSeek 余额", "balance" if icons else None, lambda: callback(pet), close_on_trigger=True)
 
 
+def add_teleagent_balance(menu: QMenu, pet, *, icons: bool = True):
+    """星辰余额（个人化改造 P12）：查 TeleAgent 平台积分余额并气泡播报。"""
+    callback = getattr(pet, "on_show_teleagent_balance", None)
+    if callback is None:
+        return None
+    return add_action(menu, "星辰余额", "balance" if icons else None, lambda: callback(pet), close_on_trigger=True)
+
+
 def add_no_move(menu: QMenu, pet, *, icons: bool = True):
     action = add_action(menu, "不移动", "pause" if icons else None)
     action.setCheckable(True)

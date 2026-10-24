@@ -55,6 +55,7 @@ from .shared import (
     add_quit,
     add_return_corner,
     add_screen_capture_menu,
+    add_teleagent_balance,
     add_spawn_pet,
     add_submenu,
     add_network_info,
@@ -84,6 +85,7 @@ ACTION_LABELS = {
     "music_lyric_align": "歌词对齐",
     "agent_cost": "显示本轮消费",
     "quick_launch": "快捷启动", "balance": "DeepSeek 余额",
+    "teleagent_balance": "星辰余额",
     "memory_trim": "回收内存",
     "harness": "启动 DeepSeek Harness", "deepseek_web": "打开网页版 DeepSeek",
     "check_update": "查看最新动态", "github_project": "GitHub 仓库",
@@ -115,6 +117,7 @@ ACTION_ICONS = {
     "music_open_qqmusic": "play", "music_open_kugou": "play",
     "music_open_soda": "play", "music_lyric_align": "play",
     "quick_launch": "application", "balance": "balance", "harness": "harness",
+    "teleagent_balance": "balance",
     "memory_trim": "clear",
     "deepseek_web": "web", "check_update": "update", "github_project": "web",
     "agent_link": "automation",
@@ -345,6 +348,9 @@ class MenuActionRegistry:
                 disabled_reason="尚未配置快捷启动应用",
             ),
             "balance": MenuActionSpec(add_balance, _callback_available("on_show_balance")),
+            "teleagent_balance": MenuActionSpec(
+                add_teleagent_balance, _callback_available("on_show_teleagent_balance")
+            ),
             # harness 属系统工具模块：可用性按**构建变体能力**判（no-chat 变体
             # 不出场是既有语义，test_sprite_menu_parity 钉着），不再误绑 chat 的
             # 运行回调——chat 模块停用时它照常出现，模块显隐归功能投影

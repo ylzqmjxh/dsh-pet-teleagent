@@ -505,7 +505,7 @@ FEATURES: dict[str, FeatureSpec] = {
         search_aliases=("灵动岛", "胶囊", "桌面组件", "网速", "帧率", "余额", "island", "FPS", "balance"),
         requires=(),
         optional_deps=("chat", "agent_link"),
-        menu_action_ids=("balance", "network_info"),
+        menu_action_ids=("balance", "teleagent_balance", "network_info"),
         config_keys=(
             "dynamic_island",
             "island_metrics",

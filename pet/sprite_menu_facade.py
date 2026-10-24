@@ -409,6 +409,19 @@ class SpriteMenuFacade:
         return lambda *_ignored: fn(host)
 
     @property
+    def on_show_teleagent_balance(self):
+        """「星辰余额」（个人化改造 P12）：``AppShell.show_teleagent_balance``。
+
+        与 ``on_show_balance`` 的差别同天气：**不**受聊天能力门控——查的是
+        TeleAgent 平台账号积分（本地凭据），与 DeepSeek/聊天无关。
+        """
+        fn = _first_callable(self._hosts(), ("show_teleagent_balance",))
+        if fn is None:
+            return None
+        host = self._service_host()
+        return lambda *_ignored: fn(host)
+
+    @property
     def on_check_update(self):
         """「检查更新」：``AppShell.check_update``（窗口版是 ``_slot_wrap`` 包装，
         这里壳本身即唯一窗，无需槽位前缀）。

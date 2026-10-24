@@ -550,6 +550,8 @@ class DynamicIsland(QWidget):
         self._balance_text = "未获取"
         # 个人化改造 P10：卡片「待办」区默认文案
         self._todo_text = "待办 --"
+        # 个人化改造 P12：卡片 A 区「星辰余额」行默认文案（未查询/未装 TeleAgent）
+        self._teleagent_balance_text = "星辰余额 --"
         self._pet_visible = True
         # 本构建是否具备聊天能力（AppShell 按 enable_chat 喂入，默认 True
         # 维持现状；纯桌宠版置 False 时 hidden_chat 单击路由回退展开卡片）
@@ -944,6 +946,12 @@ class DynamicIsland(QWidget):
     def set_todo_info(self, todo_text: str) -> None:
         """卡片「待办」区（个人化改造 P10）：与模型接入区同模式，展开即最新。"""
         self._todo_text = str(todo_text or "无待办")
+        self._sync_card_labels()
+        self._refresh()
+
+    def set_teleagent_balance(self, text: str) -> None:
+        """卡片 A 区「星辰余额」行（个人化改造 P12）：展开/查询成功时嗂数。"""
+        self._teleagent_balance_text = str(text or "星辰余额 --")
         self._sync_card_labels()
         self._refresh()
 
@@ -1938,6 +1946,7 @@ class DynamicIsland(QWidget):
         overview.setSpacing(_CARD_LINE_GAP)
         self._card_balance_label = QLabel(self._card_overview)
         self._card_tier_label = QLabel(self._card_overview)
+        self._card_teleagent_balance_label = QLabel(self._card_overview)
         self._card_status_row = QWidget(self._card_overview)
         status_line = QHBoxLayout(self._card_status_row)
         status_line.setContentsMargins(0, 0, 0, 0)
@@ -1948,6 +1957,7 @@ class DynamicIsland(QWidget):
         status_line.addWidget(self._card_status_label, 0, Qt.AlignmentFlag.AlignVCenter)
         status_line.addStretch(1)
         for widget in (self._card_balance_label, self._card_tier_label,
+                       self._card_teleagent_balance_label,
                        self._card_status_row):
             overview.addWidget(widget)
 
@@ -2024,12 +2034,15 @@ class DynamicIsland(QWidget):
         # 字体走字号层（与胶囊同一份源）、颜色走主题函数：卡片不自己发明一套
         self._card_balance_label.setFont(self._font_for("primary"))
         for label in (self._card_tier_label, self._card_status_label,
-                      self._card_message_label, self._card_todo_label):
+                      self._card_message_label, self._card_todo_label,
+                      self._card_teleagent_balance_label):
             label.setFont(self._font_for("aux"))
         self._apply_card_style(self._card_balance_label,
                                f"color: {primary_color.name()};")
         self._apply_card_style(self._card_tier_label,
                                f"color: {secondary_color.name()};")
+        self._apply_card_style(self._card_teleagent_balance_label,
+                               f"color: {primary_color.name()};")
         self._apply_card_style(self._card_status_label,
                                f"color: {self._status_dot_color().name()};")
         self._apply_card_style(self._card_message_label,
@@ -2059,6 +2072,8 @@ class DynamicIsland(QWidget):
         # ---- A 概览 ----
         self._card_balance_label.setText(self._balance_text)
         self._card_tier_label.setText(self._balance_tier_text)
+        # 个人化改造 P12：星辰余额行（主色：它是用户最关心的读数之一）
+        self._card_teleagent_balance_label.setText(self._teleagent_balance_text)
         self._card_status_label.setText(self._card_status_text())
         # ---- B 指标详情 ----
         # 行数据**一趟只算一次**（每次都要过段管线与行计划）：往下传，别在
@@ -2117,10 +2132,11 @@ class DynamicIsland(QWidget):
 
     # ------------------------------------------------------------ 卡片账目（高度/宽度）
     def _card_overview_height(self) -> int:
-        """A 区高 = 主读数行 + 峰谷行 + 状态行，逐行实测（+ 两处行距）。"""
+        """A 区高 = 主读数行 + 峰谷行 + 星辰余额行 + 状态行，逐行实测（+ 三处行距）。"""
         metrics = self._metrics_for("aux")
         status_h = max(metrics.height(), int(_STATUS_DOT_PX))
         return (self._metrics_for("primary").height()
+                + _CARD_LINE_GAP + metrics.height()
                 + _CARD_LINE_GAP + metrics.height()
                 + _CARD_LINE_GAP + status_h)
 
@@ -2169,6 +2185,7 @@ class DynamicIsland(QWidget):
         self._card_overview.setFixedHeight(self._card_overview_height())
         self._card_balance_label.setFixedHeight(self._metrics_for("primary").height())
         self._card_tier_label.setFixedHeight(metrics.height())
+        self._card_teleagent_balance_label.setFixedHeight(metrics.height())
         self._card_status_row.setFixedHeight(max(metrics.height(), int(_STATUS_DOT_PX)))
         self._card_metrics.setFixedHeight(max(1, self._card_metrics_height(rows)))
         self._card_metrics.setVisible(bool(rows))

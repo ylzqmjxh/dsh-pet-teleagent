@@ -141,6 +141,40 @@ class _QuietBalanceBridge(_BackgroundResult):
             island.set_balance_info(owner._island_tier_hint(), "余额查询失败")
 
 
+class _TeleagentBalanceBridge(_BackgroundResult):
+    """星辰余额查询结果回 GUI 线程（个人化改造 P12）。
+
+    quiet=False（右键手动查）：成功/失败都冒泡播报，成功并刷新岛卡片；
+    quiet=True（启动自动查）：只落缓存与刷新卡片，失败静默（不打扰）。
+    """
+
+    def __init__(self, owner, *, quiet: bool):
+        super().__init__()
+        self.owner = owner
+        self.quiet = bool(quiet)
+        self.done.connect(self._apply)
+
+    def _apply(self, ok: bool, payload) -> None:
+        owner = self.owner
+        if owner is None:
+            return
+        island = getattr(owner, "island", None)
+        island_valid = island is not None and shiboken6.isValid(island)
+        if ok:
+            info = payload if isinstance(payload, dict) else {}
+            if island_valid and "balance" in info:
+                owner._apply_teleagent_balance(info)
+            if not self.quiet:
+                win = getattr(owner, "win", None)
+                if win is not None and shiboken6.isValid(win):
+                    win.show_bubble(str(payload.get("text") or "查询完成"),
+                                    duration_ms=6000)
+        elif not self.quiet:
+            win = getattr(owner, "win", None)
+            if win is not None and shiboken6.isValid(win):
+                win.show_bubble(str(payload), duration_ms=6000)
+
+
 def _persona_picker(win):
     """Return an application-owned picker without extending PetWindow state."""
     try:
@@ -616,6 +650,8 @@ class PetInstance:
         win.on_open_quick_chat = self._slot_wrap(self.open_quick_chat) if self.enable_chat else None
         win.on_open_chat_settings = self._slot_wrap(self.open_chat_settings) if self.enable_chat else None
         win.on_show_balance = self._slot_wrap(self.shell.show_balance) if self.enable_chat else None
+        # 星辰余额（个人化改造 P12）：查 TeleAgent 平台积分，与聊天能力无关
+        win.on_show_teleagent_balance = self._slot_wrap(self.shell.show_teleagent_balance)
         # 天气：进程级服务（AppShell.show_weather），与聊天能力无关（独立外部数据源）
         win.on_show_weather = self._slot_wrap(self.shell.show_weather)
         win.on_check_update = self._slot_wrap(self.shell.check_update)
@@ -1388,6 +1424,8 @@ class AppShell:
         self._balance_timer.timeout.connect(self.show_balance)
         self._update_bridge = None
         self._balance_cache_path = config.dir / 'balance_cache.json'  # 跨实例共享余额缓存（按 provider 绑定）
+        # 星辰余额（个人化改造 P12）：查询忙标志（手动/启动自动共用一道门）
+        self._teleagent_balance_busy = False
         # 待办提醒：进程级单例（多窗共用一个调度器，避免每窗一个定时器重复通知），
         # Phase 1 门控：默认懒创建——配置关闭时不构造、不跑 30s 定时器；关闭且
         # 无面板打开时释放。win 引用在服务 tick 时经本类 win 属性动态读主窗，
@@ -3554,6 +3592,12 @@ class AppShell:
                     raise
             if ChatService is not None:
                 ChatService.register_global_finished(self._on_global_chat_finished)
+            # 个人化改造 P12：岛首建后自动查一次星辰余额（quiet：只落缓存
+            # 供卡片显示，不冒泡）。延迟到事件循环稳定后再查（首建时配置
+            # 与网络栈都就绪），标志防 _sync_dynamic_island 多次进入时重复查。
+            if not getattr(self, "_teleagent_balance_autofetched", False):
+                self._teleagent_balance_autofetched = True
+                QTimer.singleShot(5000, self._auto_fetch_teleagent_balance_once)
         self.island.refresh_from_config()
         # 批5.2a：灵动岛按**聚合**可见态同步（任一窗可见 = 可见），替代只看主窗。
         self.island.set_pet_visible(self._aggregate_pet_visible())
@@ -4122,6 +4166,101 @@ class AppShell:
         island.set_balance_info(*self._island_model_info())
         # 个人化改造 P10：卡片展开时一并刷新待办区
         self._refresh_island_todo()
+        # 个人化改造 P12：卡片展开时一并刷新星辰余额行（读本地缓存，不发请求）
+        self._refresh_island_teleagent_balance()
+
+    # ------------------------------------------------------------ 星辰余额（个人化改造 P12）
+    def show_teleagent_balance(self, parent=None) -> None:
+        """右键「星辰余额」：后台查 TeleAgent 平台积分并气泡播报。
+
+        凭据从本地 token.json 现读现解（teleagent_balance 模块），明文只在
+        内存里过一道；缓存写入 config.dir，卡片展开时读。与聊天能力无关
+        （查的是 TeleAgent 平台账号，不是 DeepSeek），不受 enable_chat 门控。
+        """
+        from . import teleagent_balance
+
+        win = parent
+        if win is None or not callable(getattr(win, "show_bubble", None)):
+            win = self.win
+        if win is None:
+            return
+        if self._teleagent_balance_busy:
+            win.show_bubble("正在查星辰余额…", duration_ms=4000)
+            return
+        # 30 秒内有缓存直接播，不起线程（手动查询的快速路径）
+        info = teleagent_balance.read_cache(self.config.dir)
+        now = time.time()
+        if info is not None and now - info["fetched_at"] < 30.0:
+            self._apply_teleagent_balance(info)
+            win.show_bubble(info["text"], duration_ms=6000)
+            return
+        self._teleagent_balance_busy = True
+        win.show_bubble("让我看看星辰余额…", duration_ms=6000)
+        self._spawn_teleagent_balance_worker(quiet=False)
+
+    def _spawn_teleagent_balance_worker(self, *, quiet: bool) -> None:
+        """起后台线程查星辰余额；quiet 模式（启动自动查）不冒泡只落缓存。"""
+        bridge = _TeleagentBalanceBridge(self, quiet=quiet)
+        try:
+            threading.Thread(
+                target=self._teleagent_balance_worker,
+                args=(bridge,),
+                daemon=True, name='pet-teleagent-balance',
+            ).start()
+        except Exception as exc:  # noqa: BLE001 - 启动失败也必须释放忙状态
+            self._teleagent_balance_busy = False
+            if not quiet:
+                QTimer.singleShot(
+                    0, lambda message=f"星辰余额查询失败：{exc}": bridge.done.emit(False, message))
+
+    def _teleagent_balance_worker(self, bridge) -> None:
+        """后台线程：现解本地凭据 → 查询 → 落缓存 → 回 GUI 线程。"""
+        from . import teleagent_balance
+
+        try:
+            info = teleagent_balance.fetch_balance()
+            teleagent_balance.write_cache(self.config.dir, info)
+            bridge.done.emit(True, info)
+        except Exception as exc:  # noqa: BLE001 - 任何失败回气泡（文案不带凭据）
+            bridge.done.emit(False, f"星辰余额查询失败：{exc}")
+        finally:
+            self._teleagent_balance_busy = False
+
+    def _apply_teleagent_balance(self, info: dict) -> None:
+        """把余额喂到岛卡片 A 区的星辰余额行。"""
+        island = getattr(self, "island", None)
+        if island is not None:
+            island.set_teleagent_balance(
+                f"星辰余额 {info['balance']:.2f} 积分")
+
+    def _refresh_island_teleagent_balance(self) -> None:
+        """卡片展开路径：读本地缓存刷新余额行（无缓存显示占位，不发请求）。"""
+        from . import teleagent_balance
+
+        island = getattr(self, "island", None)
+        if island is None:
+            return
+        info = teleagent_balance.read_cache(self.config.dir)
+        if info is not None:
+            island.set_teleagent_balance(
+                f"星辰余额 {info['balance']:.2f} 积分")
+        else:
+            island.set_teleagent_balance("星辰余额 --（右键「星辰余额」可查询）")
+
+    def _auto_fetch_teleagent_balance_once(self) -> None:
+        """启动自动查一次（quiet：只落缓存供卡片显示，不冒泡）。
+
+        缓存新鲜（1 小时内）就不查，避免频繁请求。"""
+        from . import teleagent_balance
+
+        if self._teleagent_balance_busy:
+            return
+        info = teleagent_balance.read_cache(self.config.dir)
+        if info is not None and time.time() - info["fetched_at"] < 3600.0:
+            self._refresh_island_teleagent_balance()
+            return
+        self._teleagent_balance_busy = True
+        self._spawn_teleagent_balance_worker(quiet=True)
 
     # ------------------------------------------------------------ 余额
     def show_balance(self, parent=None) -> None:

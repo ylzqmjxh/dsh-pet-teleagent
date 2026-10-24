@@ -1,6 +1,13 @@
 {
   "changes": [
     {
+      "version": "20261024T084646Z",
+      "appVersion": "1.5.0",
+      "date": "2026-10-24",
+      "title": "个人化改造 P12：星辰余额查询与灵动岛展示",
+      "detail": "新增 TeleAgent 平台积分余额查询：右键菜单「星辰余额」（DeepSeek 余额之后）本地解密登录凭据（token.json 经 Windows DPAPI + AES-256-GCM，纯系统 API 零第三方依赖，明文只在内存过一道不落盘）查询 points/detail 接口并气泡播报；灵动岛卡片 A 区新增「星辰余额」行（展开读本地缓存）；岛首建 5 秒后自动静默查询一次（缓存 1 小时内不重复查）；凭据每次现读现解，TeleAgent 客户端日常使用自动续期、桌宠侧无感；menu_action_ids 登记到 dynamic_island 模块、overlay facade 同步暴露回调；顺带清理 P4 遗留的菜单模板死节点（quark_download）与 P6 遗留的测试旧文案（GitHub 项目页）"
+    },
+    {
       "version": "20261024T080656Z",
       "appVersion": "1.4.0",
       "date": "2026-10-24",

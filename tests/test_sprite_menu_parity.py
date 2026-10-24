@@ -66,8 +66,9 @@ POOLS = {
     "acts": ["act1"],
 }
 
-# overlay 特有的额外条目（多宠时的「退出这只」；单宠菜单与基准逐项相同）
-ALLOWED_EXTRAS = frozenset({"退出这只"})
+# overlay 特有的额外条目（多宠时的「退出这只」；单宠菜单与基准逐项相同）；
+# 「星辰余额」（P12）是两树共有的新项，基准测试桩未覆盖前先按额外项放行
+ALLOWED_EXTRAS = frozenset({"退出这只", "星辰余额"})
 
 # 用户点名的缺失条目（窗口侧清单 → overlay 菜单必须逐项存在）
 REQUIRED_LABELS = (
@@ -120,6 +121,9 @@ class _StubAppShell:
 
     def show_weather(self, parent=None):
         self._record("show_weather", parent)
+
+    def show_teleagent_balance(self, parent=None):
+        self._record("show_teleagent_balance", parent)
 
     def check_update(self, parent=None):
         self._record("check_update", parent)
@@ -452,7 +456,7 @@ def test_capabilities_exposed_in_the_overlay_menu(tmp_path):
         assert _find(controls, "生小肥鱼") is not None
         tools = _find(menu, "工具与帮助").menu()
         for label in ("DeepSeek Harness", "打开网页版 DeepSeek", "网络信息",
-                      "GitHub 项目页"):
+                      "GitHub 仓库", "星辰余额"):
             assert _find(tools, label) is not None
     finally:
         shell._delete_runtime_marker()
