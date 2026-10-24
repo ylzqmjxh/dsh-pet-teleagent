@@ -1,0 +1,34 @@
+{
+  "changes": [
+    {
+      "version": "20261024T004335Z",
+      "date": "2026-10-24",
+      "title": "个人化改造 P3：转为个人项目并接入 GitHub 管理",
+      "detail": "删除上游 git 历史与原作者展示内容（设置页作者账号区），更新检查指向个人仓库，重写 README；保留 MIT LICENSE 与二次开发致谢（法律要求）；初始化全新 git 仓库用于个人项目管理"
+    },
+    {
+      "version": "20261023T173800Z",
+      "date": "2026-10-24",
+      "title": "TeleAgent 联动注册（配置项）",
+      "detail": "agent_link.custom_agents 注册 teleagent，开启六态事件联动（写配置，无源码改动）"
+    },
+    {
+      "version": "20261023T180242Z",
+      "date": "2026-10-24",
+      "title": "本地补丁 P1：灵动岛状态灯同步",
+      "detail": "自定义 Agent 状态驱动灵动岛状态点：agent_link 新增 custom_island_state 信号与六态→八态映射，app.py 订阅后注入岛（与 DSH 共用 set_dsh_state 入口）"
+    },
+    {
+      "version": "20261023T181800Z",
+      "date": "2026-10-24",
+      "title": "岛组件 C1：状态文字注释",
+      "detail": "第三方岛组件 teleagent-state（官方组件机制，零源码改动）：状态灯旁同步显示 运行中/思考中/待确认/出错/刚完成(4s)/待命"
+    },
+    {
+      "version": "20261023T181832Z",
+      "date": "2026-10-24",
+      "title": "本地补丁 P2：更新页变更记录与项目来源",
+      "detail": "更新页新增「TeleAgent 本地变更记录」卡片（读取本文件渲染）与「项目来源」分区（原作者开源仓库 / 上游项目 / 技术栈，可点击直达）"
+    }
+  ]
+}

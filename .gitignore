@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+
+# 运行时产物
+tmp_appdata/
+tests/_tmp_*/
+
+# 个人化改造 P3：assets 全量入库（个人仓库完整性优先，任何机器克隆即可运行）
+# （原上游策略为素材走 Release 分发，此处改为随仓库走）
+
+# 随包分发的第三方二进制（刻意入库）：
+# resources/presentmon/ 是游戏帧率段数据源（无 PyPI 包）；
+# resources/rapidocr_models/ 是本地 OCR 权重（3 个 ONNX 共 31.6MB）。
+# 来源与许可见 THIRD_PARTY_NOTICES.md。
+
+# PyInstaller 构建产物
+build/
+dist/
+*.spec
+
+# 本地开发文档（不随仓库发布）
+LOG.md
+LOG-INDEX.md
+SPEC.md
+_plan/
+# onedir build artifacts
+dist-onedir/
+build-onedir/
+
+# 构建注入的变体标识（由 scripts/build_onedir.ps1 生成）
+packaging/build_variant.py
+
+# 本地实验目录（含嵌套 git 仓库，不入库）
+.research/
+
+# 全局忽略 macOS 元数据（置于所有白名单之后，防止被 !** 反向放行）
+**/.DS_Store
+.serena/
+.scratch/
+
+# Node 依赖树：桥接插件为零依赖红线，本地 pnpm install 残留不许入库
+node_modules/
+dist-onedir-alt/
+
+# Android tools, signing material, and generated outputs
+android/.gradle/
+android/.kotlin/
+android/hs_err_pid*.log
+android/local.properties
+android/**/build/
+*.keystore
+*.jks
+dist-android/
+
+# 素材包构建产物（发布门输出）
+dist-packs/
+
+# TeleAgent 本地运行产物
+*.log
+.temp/
