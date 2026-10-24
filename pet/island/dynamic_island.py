@@ -545,8 +545,9 @@ class DynamicIsland(QWidget):
         self._drag_offset: QPoint | None = None
         self._dragging = False
         self._press_global: QPoint | None = None
-        self._balance_tier_text = "余额峰谷 --"
-        self._balance_text = "余额 --"
+        # 个人化改造 P9：该信息区改为「模型接入」展示（原 DeepSeek 余额/峰谷）
+        self._balance_tier_text = "模型接入 --"
+        self._balance_text = "未获取"
         self._pet_visible = True
         # 本构建是否具备聊天能力（AppShell 按 enable_chat 喂入，默认 True
         # 维持现状；纯桌宠版置 False 时 hidden_chat 单击路由回退展开卡片）

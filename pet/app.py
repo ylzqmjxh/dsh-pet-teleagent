@@ -4010,6 +4010,25 @@ class AppShell:
                 return pm
         return None
 
+    def _island_model_info(self) -> tuple[str, str]:
+        """个人化改造 P9：卡片「模型接入」信息（替代 DeepSeek 余额峰谷的默认显示）。
+
+        返回 (tier_text, main_text)：本地回环端点 →「本地模型 · 零费用」；
+        在线 API →「在线 API 模型」；正文为 服务商 · 模型名。读取异常时如实提示。
+        """
+        try:
+            import urllib.parse
+            provider = self.config.chat_settings().active_config
+            host = (urllib.parse.urlparse(str(provider.base_url or "")).hostname or "").lower()
+            name = str(provider.name or getattr(provider, "provider_id", "") or "").strip()
+            model = str(provider.model or "").strip()
+            main = " · ".join(part for part in (name, model) if part) or "未配置模型"
+            if host in ("localhost", "127.0.0.1", "::1"):
+                return ("本地模型 · 零费用", main)
+            return ("在线 API 模型", main)
+        except Exception:
+            return ("模型接入 --", "未配置")
+
     def _island_tier_hint(self) -> str:
         """灵动岛余额峰谷提示文案（与 _update_island_balance / 静默查询共用）。
 
@@ -4043,65 +4062,19 @@ class AppShell:
             self.island.notify_event("balance")
 
     def _quiet_balance_refresh(self, *, force: bool = False) -> None:
-        """灵动岛卡片展开时的静默余额刷新：不冒泡、不播动画，只更新岛卡片。
+        """个人化改造 P9：卡片展开时显示「当前模型接入」状态。
 
-        30s 内存/文件缓存命中直接用；否则后台查询（60s 节流，查询忙时跳过）。
-        未配置 API Key 时明确提示，不再停留 "余额 --"。
+        原为 DeepSeek 余额静默刷新——接入本地模型（Ollama）时无余额概念，
+        且未配 DeepSeek Key 时会误显「未配置 API Key」；改为按当前 active
+        provider 展示模型接入（本地/API + 模型名）。手动「DeepSeek 余额」
+        的显式查询（show_balance 及其回调）不受影响，仍可单独查 DeepSeek。
         """
         island = getattr(self, "island", None)
-        if island is None or getattr(self, "_quiet_balance_busy", False):
+        if island is None:
             return
         if not feature_activation_mod.is_active("dynamic_island"):
-            # 余额属灵动岛模块：模块停用后卡片不可能展开（岛根本不存在），
-            # 这条直达回调也不许绕过模块闸去发网络请求。
             return
-        if not getattr(self, "enable_chat", True):
-            island.set_balance_info(self._island_tier_hint(), "此版本无余额查询")
-            return
-        now = time.monotonic()
-        import hashlib
-        settings = self.config.chat_settings()
-        provider = settings.active_config
-        provider.api_key = self.config.resolve_api_key(provider)
-        if not provider.api_key:
-            island.set_balance_info(
-                self._island_tier_hint(), "未配置 API Key（设置 → 聊天）")
-            return
-        key_digest = hashlib.sha256(str(provider.api_key or '').encode()).hexdigest()[:12]
-        provider_key = '|'.join([
-            str(getattr(provider, 'id', '') or ''),
-            str(provider.base_url or ''),
-            key_digest,
-        ])
-        if self._balance_cache is not None and now - self._balance_cache[0] < 30.0 \
-                and self._balance_cache[2] == provider_key:
-            self._update_island_balance(self._balance_cache[1], animate=False)
-            return
-        file_payload = self._read_balance_file_cache(provider_key)
-        if file_payload is not None:
-            self._balance_cache = (now, file_payload, provider_key)
-            self._update_island_balance(file_payload, animate=False)
-            return
-        last = getattr(self, "_quiet_balance_last", None)
-        if not force and last is not None and now - last < 60.0:
-            # 节流命中且缓存已过期：明示状态，不停留在旧值上装死
-            island.set_balance_info(self._island_tier_hint(), "刚刚查询过，稍后自动更新")
-            return
-        self._quiet_balance_last = now
-        island.set_balance_info(self._island_tier_hint(), "查询中…")
-        bridge = _QuietBalanceBridge(owner=self)
-        self._quiet_balance_bridge = bridge
-        self._quiet_balance_busy = True  # 独立忙标志：不占显式查询的闸门
-        try:
-            threading.Thread(
-                target=self._balance_worker,
-                args=(bridge, provider.base_url, provider.api_key, provider.verify_ssl, provider_key),
-                kwargs={"quiet": True},
-                daemon=True, name='pet-balance-quiet',
-            ).start()
-        except Exception as exc:  # noqa: BLE001 - 启动失败也必须释放忙状态
-            self._quiet_balance_busy = False
-            QTimer.singleShot(0, lambda message=str(exc): bridge.done.emit(False, message))
+        island.set_balance_info(*self._island_model_info())
 
     # ------------------------------------------------------------ 余额
     def show_balance(self, parent=None) -> None:
