@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from datetime import datetime
 
 from PySide6.QtCore import QUrl, Qt, Signal
 from PySide6.QtGui import QDesktopServices
@@ -25,6 +26,30 @@ from PySide6.QtWidgets import (
 
 from . import __version__, updater
 from .settings_about import build_info_section
+
+#: 个人化改造 P8：提交说明的展示截断长度（字符）
+_COMMIT_MESSAGE_LIMIT = 48
+
+
+def _format_commit_time(iso_date: str) -> str:
+    """ISO8601（GitHub API 的 author.date，UTC）→ 本地时间“MM-DD HH:MM”；解析失败返回空串。"""
+    text = str(iso_date or "").strip()
+    if not text:
+        return ""
+    try:
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return moment.astimezone().strftime("%m-%d %H:%M")
+    except ValueError:
+        return ""
+
+
+def _format_commit_line(commit: dict) -> str:
+    """一条提交 → 人话展示行：日期时间 + 说明（截断）；不显示哈希（对使用者无意义）。"""
+    message = str(commit.get("message") or "")
+    if len(message) > _COMMIT_MESSAGE_LIMIT:
+        message = message[:_COMMIT_MESSAGE_LIMIT].rstrip() + "…"
+    when = _format_commit_time(commit.get("date"))
+    return f"{when}  {message}".strip()
 
 
 class UpdatePage(QWidget):
@@ -136,9 +161,7 @@ class UpdatePage(QWidget):
         release = result.get("release") or None
         self.release = release
         if commits:
-            lines = []
-            for c in commits:
-                lines.append(f"{c.get('sha', '')}  {c.get('message', '')}")
+            lines = [_format_commit_line(c) for c in commits]
             text = "\n".join(lines)
             if release and updater.is_newer(str(release.get("version") or "")):
                 text = (f"发现新版本 v{release.get('version')}（见 Release 说明）：\n"

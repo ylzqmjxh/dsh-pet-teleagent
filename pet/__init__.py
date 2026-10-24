@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-"""dsh-pet-teleagent：个人定制版桌面桌宠（基于 dsh-pet-indesktop MIT 二次开发）。
-
-版本管理（个人化改造 P6）：采用 SemVer（语义化版本）+ Git Tag/Release——
-代码版本号为唯一真源，每次发布同步打 tag 推送 GitHub；
-teleagent-changes.json 的时间戳条目经 appVersion 字段与本号关联。
-"""
-__version__ = '1.1.1'
+﻿# -*- coding: utf-8 -*-
+"""dsh-pet-teleagent锛氫釜浜哄畾鍒剁増妗岄潰妗屽疇锛堝熀浜?dsh-pet-indesktop MIT 浜屾寮€鍙戯級銆?
+鐗堟湰绠＄悊锛堜釜浜哄寲鏀归€?P6锛夛細閲囩敤 SemVer锛堣涔夊寲鐗堟湰锛? Git Tag/Release鈥斺€?浠ｇ爜鐗堟湰鍙蜂负鍞竴鐪熸簮锛屾瘡娆″彂甯冨悓姝ユ墦 tag 鎺ㄩ€?GitHub锛?teleagent-changes.json 鐨勬椂闂存埑鏉＄洰缁?appVersion 瀛楁涓庢湰鍙峰叧鑱斻€?"""
+__version__ = '1.1.2'
