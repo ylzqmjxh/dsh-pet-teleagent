@@ -15,6 +15,7 @@ import logging
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -299,6 +300,19 @@ def _safe_detail(raw: str) -> str:
     return ' '.join(raw.split())[:300] or 'Provider 请求失败'
 
 
+def _is_local_endpoint(base_url: str) -> bool:
+    """端点是否本地回环（个人化改造 P7）：本地服务（如 Ollama）无鉴权，豁免 Key。
+
+    仅识别 localhost / 127.0.0.1 / [::1]；LAN 地址（192.168.x 等）不在此列——
+    那已经暴露在局域网里，保持原有 Key 纪律不变。
+    """
+    try:
+        host = urllib.parse.urlparse(str(base_url)).hostname or ""
+    except ValueError:
+        return False
+    return host.lower() in ("localhost", "127.0.0.1", "::1")
+
+
 def _post_vision_request(
     jpeg_bytes: bytes,
     app_info: str,
@@ -381,6 +395,8 @@ def _post_vision_request(
     # 安全（高优先）：独立视觉端点（vision_same_as_chat=False）绝不能把聊天 Key
     # 一起发过去。只有与聊天同模型时才允许复用聊天 Key；独立端点只认视觉自己的
     # Key（含钥匙串解析），缺失时直接报错，绝不回退到聊天 Key。
+    # 个人化改造 P7：本地回环端点（Ollama 等无鉴权服务）豁免 Key 强制，
+    # 不发 Authorization 头；非本地端点保持原纪律。
     if p.vision_same_as_chat:
         api_key = p.api_key
     else:
@@ -389,7 +405,7 @@ def _post_vision_request(
             from .chat.models import SecretStore
             vkey = SecretStore().get(p.vision_api_key_ref)
         api_key = vkey
-        if not api_key:
+        if not api_key and not _is_local_endpoint(base_url):
             raise VisionError('独立视觉服务未配置 API Key')
     if api_key:
         headers['Authorization'] = f'Bearer {api_key}'

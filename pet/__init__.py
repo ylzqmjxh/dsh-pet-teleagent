@@ -5,4 +5,4 @@
 代码版本号为唯一真源，每次发布同步打 tag 推送 GitHub；
 teleagent-changes.json 的时间戳条目经 appVersion 字段与本号关联。
 """
-__version__ = '1.1.0'
+__version__ = '1.1.1'

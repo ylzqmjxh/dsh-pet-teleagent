@@ -1,6 +1,13 @@
 {
   "changes": [
     {
+      "version": "20261024T070717Z",
+      "appVersion": "1.1.1",
+      "date": "2026-10-24",
+      "title": "个人化改造 P7：本地独立视觉服务豁免 API Key（修复）",
+      "detail": "修复 v1.1.0 遗留：独立视觉端点（vision_same_as_chat=False）强制要求 API Key，导致本地 Ollama 视觉模型（qwen2.5vl）识屏必报「独立视觉服务未配置 API Key」；现对本地回环端点（localhost/127.0.0.1/::1）豁免 Key 强制（无鉴权服务不发 Authorization），局域网与公网端点保持原 Key 纪律；端到端实测本地识图通过（qwen2.5vl 正确识别灵动岛截图内容）"
+    },
+    {
       "version": "20261024T015325Z",
       "appVersion": "1.1.0",
       "date": "2026-10-24",
