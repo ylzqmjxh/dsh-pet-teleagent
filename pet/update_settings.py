@@ -64,7 +64,8 @@ class UpdatePage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
         intro = QLabel(
-            f"当前版本 v{__version__}。更新检查会优先使用 GitHub API，连接失败时自动切换到 CDN 镜像。",
+            f"当前版本 v{__version__}（个人定制版）。更新检查查询个人仓库 dsh-pet-teleagent 的 GitHub Release；"
+            "未发布新版本即为最新。",
             self,
         )
         intro.setWordWrap(True)
@@ -76,7 +77,7 @@ class UpdatePage(QWidget):
         status_layout = QVBoxLayout(status_card)
         status_layout.setContentsMargins(16, 14, 16, 14)
         status_layout.setSpacing(8)
-        self.version_label = QLabel(f"当前版本  v{__version__}", status_card)
+        self.version_label = QLabel(f"当前版本  v{__version__}（个人定制版）", status_card)
         self.version_label.setObjectName("updateCurrentVersion")
         self.status_label = QLabel("尚未检查更新", status_card)
         self.status_label.setObjectName("updateStatus")
@@ -94,9 +95,10 @@ class UpdatePage(QWidget):
         self.install_button.setObjectName("installUpdateButton")
         self.install_button.setEnabled(False)
         self.install_button.clicked.connect(self.download_and_install)
-        self.manual_button = QPushButton("打开下载页", self)
+        self.manual_button = QPushButton("打开仓库页", self)
         self.manual_button.setObjectName("manualUpdateButton")
         self.manual_button.setEnabled(False)
+        self.manual_button.setToolTip("打开个人仓库 dsh-pet-teleagent 的 Release 页面")
         self.manual_button.clicked.connect(self.open_download_page)
         action_row.addWidget(self.check_button)
         action_row.addWidget(self.install_button)
@@ -175,7 +177,10 @@ class UpdatePage(QWidget):
         self._busy = False
         if isinstance(result, Exception) or result is None:
             self.release = None
-            self._set_state("无法连接更新服务，请检查网络后重试。", checking=False)
+            self._set_state(
+                "未查询到可用更新：个人仓库尚未发布新 Release（或网络不可达）。",
+                checking=False,
+            )
             self.manual_button.setEnabled(True)
             return
         self.release = result
@@ -254,7 +259,8 @@ class UpdatePage(QWidget):
         self.window().close()
 
     def open_download_page(self) -> None:
-        url = str((self.release or {}).get("html_url") or updater.REPO_URL)
+        # 个人化改造 P4：打开个人仓库 Release 页
+        url = str((self.release or {}).get("html_url") or (updater.REPO_URL + "/releases"))
         QDesktopServices.openUrl(QUrl(url))
 
     def _set_state(self, text: str, *, checking: bool) -> None:

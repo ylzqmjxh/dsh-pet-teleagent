@@ -24,7 +24,6 @@ from .quick_launch import add_quick_launch_menu, configured_quick_apps
 from .shared import (
     MUSIC_ALIGN_DISABLED_REASON,
     NETWORK_INFO_DISABLED_REASON,
-    QUARK_PAN_URL,
     REPO_URL,
     add_action,
     add_agent_link_menu,
@@ -88,7 +87,7 @@ ACTION_LABELS = {
     "memory_trim": "回收内存",
     "harness": "启动 DeepSeek Harness", "deepseek_web": "打开网页版 DeepSeek",
     "check_update": "检查更新", "github_project": "GitHub 项目页",
-    "quark_download": "夸克网盘下载", "agent_link": "Agent 联动",
+    "agent_link": "Agent 联动",
     "proactive_screen": "主动识屏", "todo_panel": "待办提醒",
     "quiet_mode": "免打扰",
     "weather": "查看天气", "weather_cities": "天气城市",
@@ -118,7 +117,7 @@ ACTION_ICONS = {
     "quick_launch": "application", "balance": "balance", "harness": "harness",
     "memory_trim": "clear",
     "deepseek_web": "web", "check_update": "update", "github_project": "web",
-    "quark_download": "download", "agent_link": "automation",
+    "agent_link": "automation",
     "proactive_screen": "screen", "todo_panel": "todo",
     "quiet_mode": "pause",
     "weather": "weather", "weather_cities": "weather",
@@ -277,16 +276,6 @@ def _build_github(menu, _pet):
     )
 
 
-def _build_quark(menu, _pet):
-    return add_action(
-        menu,
-        "夸克网盘下载",
-        "download",
-        lambda: QDesktopServices.openUrl(QUrl(QUARK_PAN_URL)),
-        close_on_trigger=True,
-    )
-
-
 class MenuActionRegistry:
     """Resolve capability-aware action IDs and render a resolved menu tree."""
 
@@ -367,7 +356,6 @@ class MenuActionRegistry:
             "deepseek_web": MenuActionSpec(lambda menu, pet: add_deepseek_web(menu)),
             "check_update": MenuActionSpec(_build_check_update, _callback_available("on_check_update")),
             "github_project": MenuActionSpec(_build_github),
-            "quark_download": MenuActionSpec(_build_quark, lambda _pet: sys.platform == "win32"),
             "agent_link": MenuActionSpec(add_agent_link_menu),
             "proactive_screen": MenuActionSpec(
                 add_proactive_menu,

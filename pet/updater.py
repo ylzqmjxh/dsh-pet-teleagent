@@ -23,17 +23,14 @@ from typing import Callable
 from . import __version__
 
 APP_VERSION = __version__
-# 个人化改造 P3：更新检查指向个人仓库（占位 ylzqmjxh，上传后统一替换）；
+# 个人化改造 P3：更新检查指向个人仓库（占位 GITHUB_USERNAME，上传后统一替换）；
 # 个人仓库无 release 时「检查更新」即显示已是最新，不会再拉原作者版本覆盖本地定制
 REPO = 'ylzqmjxh/dsh-pet-teleagent'
 RELEASE_API = f'https://api.github.com/repos/{REPO}/releases/latest'
 REPO_URL = f'https://github.com/{REPO}'
-QUARK_PAN_URL = 'https://pan.quark.cn/s/68fc681ae486'
-_UPDATE_JSON_URLS = (
-    f'https://cdn.jsdelivr.net/gh/{REPO}@main/update.json',
-    f'https://fastly.jsdelivr.net/gh/{REPO}@main/update.json',
-    f'https://gcore.jsdelivr.net/gh/{REPO}@main/update.json',
-)
+# 个人化改造 P4：移除静态 CDN update.json 兑底（防止误拉上游安装包覆盖本地定制）；
+# 个人项目仅查询个人仓库的 GitHub Release
+_UPDATE_JSON_URLS: tuple[str, ...] = ()
 _USER_AGENT = 'dsh-pet-standalone-updater'
 _TRUSTED_ASSET_HOSTS = {
     'github.com',
@@ -162,7 +159,10 @@ def _release_from_payload(data: dict) -> dict | None:
 
 
 def latest_release(timeout: float = 5.0) -> dict | None:
-    """多源查询最新版本信息（GitHub API 优先，静态 CDN 兜底）。"""
+    """查询个人仓库的最新 Release（个人化改造 P4：仅 GitHub API，无静态 CDN 兑底）。
+
+    个人仓库未发布 Release 时返回 None（更新页如实显示"已是最新/无可用更新"）。
+    """
     release = _fetch_json(RELEASE_API, timeout)
     if isinstance(release, dict) and release.get('tag_name'):
         assets, asset_details = _normalise_assets({
