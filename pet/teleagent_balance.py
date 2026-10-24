@@ -248,6 +248,9 @@ def write_cache(config_dir, info: dict) -> bool:
     """写余额缓存（只存数字与时间戳，不存任何凭据）；失败返回 False。"""
     try:
         path = Path(config_dir) / CACHE_NAME
+        # config.dir 极少缺失（真实运行必在）；测试/迁移场景目录可能还没建，
+        # 就地补建父目录，别让一次展示性的缓存写失败。
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({
             "balance": info.get("balance"),
             "used_rate": info.get("used_rate"),

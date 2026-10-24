@@ -1797,6 +1797,7 @@ class _IslandStub:
     _SIGNALS = frozenset({
         "clicked", "toggle_pet_requested", "open_chat_requested",
         "open_settings_requested", "chat_requested", "card_expanded",
+        "card_tick",  # P13：卡片展开中的每秒 tick（AppShell 借此周期重读数据行）
     })
 
     def __init__(self, cfg):

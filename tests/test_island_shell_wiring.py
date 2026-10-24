@@ -108,58 +108,56 @@ def test_island_survives_no_chat_packaging_variant(tmp_path, monkeypatch):
 
 
 def test_quiet_balance_refresh_paths(tmp_path, monkeypatch):
-    """卡片展开静默刷新：无 Key 明示 / 缓存命中直接用 / 后台查询只更新岛。"""
-    import hashlib
+    """卡片展开与展开中的数据行刷新（P9 模型接入 / P12 星辰余额 / P13 周期刷新）。
+
+    旧版（DeepSeek 余额静默查询）已在 P9 改造为「模型接入」展示；本用例
+    钉住现行契约：展开即刷三行、60 秒节流、余额缓存超 5 分钟静默重查。
+    """
     import time as _time
-    from types import SimpleNamespace
+
+    from pet import teleagent_balance
 
     app = _qapp()
     shell = _make_shell(tmp_path)
-    shell._balance_busy = False
-    shell._balance_cache = None
-    shell._balance_cache_path = Path(shell.config.dir) / "balance_cache.json"
     try:
         shell._sync_dynamic_island()
         island = shell.island
 
-        provider = SimpleNamespace(id="p", base_url="http://x", api_key="", verify_ssl=True)
-        monkeypatch.setattr(shell.config, "chat_settings",
-                            lambda: SimpleNamespace(active_config=provider))
-        monkeypatch.setattr(shell.config, "resolve_api_key", lambda _p: "")
-
-        # 1) 未配置 API Key → 明确提示，不再停留 "余额 --"
+        # 1) 展开卡片：模型接入信息到达、余额行落占位（无缓存不发请求）
         island.expand_card()  # card_expanded → _quiet_balance_refresh
-        assert island._balance_text.startswith("未配置 API Key")
+        assert island._balance_text  # 模型接入正文（P9：不再有"未配置 API Key"旧文案）
+        assert "星辰余额" in island._teleagent_balance_text
+        assert getattr(shell, "_island_tick_last", None) is not None  # P13 节流窗已置
 
-        # 2) 有 Key + 新鲜内存缓存 → 直接命中，不起后台查询
-        provider.api_key = "sk-test"
-        monkeypatch.setattr(shell.config, "resolve_api_key", lambda _p: "sk-test")
-        digest = hashlib.sha256(b"sk-test").hexdigest()[:12]
-        provider_key = "|".join(["p", "http://x", digest])
-        shell._balance_cache = (_time.monotonic(), {"text": "余额 ¥9.9", "info": {}}, provider_key)
-        shell._quiet_balance_refresh()
-        assert island._balance_text == "余额 ¥9.9"
+        # 2) 落一份余额缓存 → 展开路径读缓存刷新余额行（数字上岛）
+        teleagent_balance.write_cache(
+            shell.config.dir, {"balance": 8023.39, "used_rate": "51.37",
+                               "fetched_at": _time.time()})
+        shell._refresh_island_teleagent_balance()
+        assert "8023.39" in island._teleagent_balance_text
 
-        # 3) 无缓存 → 后台查询：结果回来只更新岛卡片（不冒泡/不播动画）
-        island._finish_animations()  # 展开动画落定（动画表停），隔离基线
-        assert not island._anim_timer.isActive()
-        shell._balance_cache = None
-        shell._quiet_balance_last = None
+        # 3) 60 秒节流：窗口内 tick 不重复刷（余额行改脏后不被 tick 洗掉）
+        island.set_teleagent_balance("脏值")
+        shell._island_tick_last = _time.monotonic()
+        shell._on_island_card_tick()
+        assert island._teleagent_balance_text == "脏值"
 
-        def fake_worker(bridge, base_url, api_key, verify_ssl, provider_key='', **_kw):
-            bridge.done.emit(True, {"text": "余额 ¥8.8", "info": {}})
+        # 4) 窗口过期（>60s）→ tick 全量重读：脏值被缓存真值洗回
+        shell._island_tick_last = _time.monotonic() - 61.0
+        spawns: list = []
+        monkeypatch.setattr(shell, "_spawn_teleagent_balance_worker",
+                            lambda *, quiet: spawns.append(quiet))
+        shell._on_island_card_tick()
+        assert "8023.39" in island._teleagent_balance_text
 
-        monkeypatch.setattr(shell, "_balance_worker", fake_worker)
-        shell._quiet_balance_refresh()
-        for _ in range(50):
-            QApplication.processEvents()
-            _time.sleep(0.02)
-            if island._balance_text == "余额 ¥8.8":
-                break
-        assert island._balance_text == "余额 ¥8.8"
-        assert not island._anim_timer.isActive()  # 静默路径不播动画
+        # 5) 余额缓存超 5 分钟 → 周期 tick 触发一次静默重查（quiet=True）
+        teleagent_balance.write_cache(
+            shell.config.dir, {"balance": 1.0, "used_rate": "",
+                               "fetched_at": _time.time() - 301.0})
+        shell._island_tick_last = _time.monotonic() - 61.0
+        shell._on_island_card_tick()
+        assert spawns == [True]
     finally:
-        shell._balance_busy = False
         _teardown_shell(shell)
         app.processEvents()
 

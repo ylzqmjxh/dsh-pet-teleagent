@@ -523,6 +523,7 @@ class DynamicIsland(QWidget):
     open_chat_requested = Signal()
     open_settings_requested = Signal()
     card_expanded = Signal()  # 卡片展开（AppShell 借此静默刷新余额）
+    card_tick = Signal()  # 卡片展开中的每秒 tick（AppShell 节流后重读数据行）
     chat_requested = Signal()  # 桌宠隐藏时单击胶囊（hidden_chat 开启）：弹岛对话气泡
 
     def __init__(self, config, parent=None):
@@ -2596,9 +2597,12 @@ class DynamicIsland(QWidget):
         """卡片开着时的每秒 tick：刷新更新时间/状态文字，并让高度跟上内容。
 
         停表纪律同完成瞬态：收起与隐藏都停表，静止时零定时器开销。
+        个人化改造 P13：tick 顺带发 card_tick 信号——AppShell 借此在展开态周期
+        重读数据行（余额/待办/模型接入），卡片开着也会自己“活”，不必点一下才刷新。
         """
         self._sync_card_labels()
         self._resize_card_if_needed()
+        self.card_tick.emit()
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)

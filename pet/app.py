@@ -1426,6 +1426,9 @@ class AppShell:
         self._balance_cache_path = config.dir / 'balance_cache.json'  # 跨实例共享余额缓存（按 provider 绑定）
         # 星辰余额（个人化改造 P12）：查询忙标志（手动/启动自动共用一道门）
         self._teleagent_balance_busy = False
+        # P13：卡片展开中的数据行周期刷新节流表（None = 从未刷过；
+        # 不用绝对值做回拨算术，同 _quiet_balance_last 纪律）
+        self._island_tick_last: float | None = None
         # 待办提醒：进程级单例（多窗共用一个调度器，避免每窗一个定时器重复通知），
         # Phase 1 门控：默认懒创建——配置关闭时不构造、不跑 30s 定时器；关闭且
         # 无面板打开时释放。win 引用在服务 tick 时经本类 win 属性动态读主窗，
@@ -3580,6 +3583,8 @@ class AppShell:
             self.island.chat_requested.connect(self._chat_from_island)
             # 卡片展开 → 静默刷新余额（不冒泡、不播动画，只更新岛卡片）
             self.island.card_expanded.connect(self._quiet_balance_refresh)
+            # P13：卡片展开中的每秒 tick → 节流后周期重读数据行（展开即活的续期）
+            self.island.card_tick.connect(self._on_island_card_tick)
             # 进程级聊天完成订阅：AI 回复到达 → 岛播事件动效并记录最近消息。
             # 无聊天功能的打包变体会排除 pet.chat（参照 config.py 的同款守卫），
             # 那里跳过订阅即可，灵动岛本体照常可用。
@@ -4168,6 +4173,35 @@ class AppShell:
         self._refresh_island_todo()
         # 个人化改造 P12：卡片展开时一并刷新星辰余额行（读本地缓存，不发请求）
         self._refresh_island_teleagent_balance()
+        # P13：展开即刷了一轮，重置节流窗口（避免紧接着的 tick 秒内重复刷）
+        self._island_tick_last = time.monotonic()
+    def _on_island_card_tick(self) -> None:
+        """卡片展开中的数据行周期刷新（个人化改造 P13）。
+
+        岛的每秒 tick 驱动，这里节流到 60 秒一轮：重读本地数据刷
+        模型接入/待办/余额三行（纯本地、零请求）；余额缓存超过 5 分钟
+        就顺带静默重查一次 API（quiet：不冒泡，查完落缓存自动刷卡片）。
+        收起即停表（tick 只在展开态跑），无周期请求泄漏。
+        """
+        now = time.monotonic()
+        last = getattr(self, "_island_tick_last", None)
+        if last is not None and now - last < 60.0:
+            return
+        self._island_tick_last = now
+        island = getattr(self, "island", None)
+        if island is None:
+            return
+        island.set_balance_info(*self._island_model_info())
+        self._refresh_island_todo()
+        self._refresh_island_teleagent_balance()
+        # 余额缓存超5分钟：展开期间周期性静默重查，让数字“实时”起来
+        from . import teleagent_balance
+
+        info = teleagent_balance.read_cache(self.config.dir)
+        if (info is None or time.time() - info["fetched_at"] >= 300.0) \
+                and not getattr(self, "_teleagent_balance_busy", False):
+            self._teleagent_balance_busy = True
+            self._spawn_teleagent_balance_worker(quiet=True)
 
     # ------------------------------------------------------------ 星辰余额（个人化改造 P12）
     def show_teleagent_balance(self, parent=None) -> None:
