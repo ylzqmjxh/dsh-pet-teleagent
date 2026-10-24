@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from html import escape
+from pathlib import Path
 
 from PySide6.QtCore import QDate, Qt, QTime
 from PySide6.QtGui import QPalette
@@ -34,6 +36,14 @@ from PySide6.QtWidgets import (
 from .reminder import new_todo_item, summarize_next
 
 
+def _strike(text: str) -> str:
+    """完成条目的删除线富文本（标题与时间徽标共用，P11）。
+
+    title 含 ``<``/``&`` 等字符时必须转义，否则富文本解析会把它们当标签吞掉。
+    """
+    return f"<s>{escape(str(text))}</s>"
+
+
 def _stylesheet(widget: QWidget) -> str:
     dark = widget.palette().color(QPalette.ColorRole.Window).lightness() < 128
     if dark:
@@ -43,6 +53,9 @@ def _stylesheet(widget: QWidget) -> str:
         window, card, border, divider = "#fcfcfd", "#ffffff", "#e2e4e8", "#eceef1"
         text, hint, hover = "#252525", "#777777", "#f4f5f6"
     accent = "#0a84ff"
+    # 勾选态白色对号（P11）：勾选框与「完成」语义配套，光蓝底不够表达。
+    # QSS 的 image 取同目录 svg（Qt 内建 svg 渲染，无需图片资源编译）。
+    checkmark = Path(__file__).with_name("checkmark.svg").as_posix()
     return f"""
     QDialog, QWidget#todoRowsHost {{
         background: {window};
@@ -119,6 +132,7 @@ def _stylesheet(widget: QWidget) -> str:
     QCheckBox::indicator:checked {{
         background: {accent};
         border-color: {accent};
+        image: url({checkmark});
     }}
     QCheckBox::indicator:focus {{ border: 1px solid {accent}; }}
     """
@@ -321,28 +335,37 @@ class TodoPanelDialog(QDialog):
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(10)
 
+        done = bool(item.get("done"))
         toggle = QCheckBox()
         toggle.setObjectName(f"todoEnable_{item['id']}")
-        toggle.setChecked(bool(item["enabled"]))
-        toggle.setToolTip("启用/停用此待办")
+        # P11：勾选框表达「完成」——新建是空框，勾上画对号并加删除线。
+        # 勾选联动停用提醒（enabled=False），取消勾选恢复启用（见 _set_item_done）。
+        toggle.setChecked(done)
+        toggle.setToolTip("完成此待办" if not done else "恢复为未完成")
         # 无文本控件的可达名：屏幕阅读器朗读条目标题而非匿名 checkbox
         toggle.setAccessibleName(str(item["title"]))
-        toggle.setAccessibleDescription("启用或停用此待办")
+        toggle.setAccessibleDescription("标记完成或恢复未完成")
         toggle.toggled.connect(
-            lambda checked, item_id=item["id"]: self._set_item_enabled(item_id, checked)
+            lambda checked, item_id=item["id"]: self._set_item_done(item_id, checked)
         )
         layout.addWidget(toggle)
 
+        # 完成与停用都灰显；只有「完成」叠删除线（纯停用≠办完）。
+        muted = done or not item["enabled"]
         text_col = QVBoxLayout()
         text_col.setSpacing(1)
-        title_label = QLabel(item["title"])
+        title_label = QLabel(_strike(item["title"]) if done else str(item["title"]))
+        title_label.setTextFormat(Qt.TextFormat.RichText)
         title_label.setWordWrap(True)
-        if not item["enabled"]:
+        if muted:
             title_label.setProperty("muted", True)
         text_col.addWidget(title_label)
         badge = QLabel(self._badge_text(item))
         badge.setObjectName("todoBadgeLabel")
-        if not item["enabled"]:
+        if done:
+            badge.setTextFormat(Qt.TextFormat.RichText)
+            badge.setText(_strike(self._badge_text(item)))
+        if muted:
             badge.setProperty("muted", True)
         text_col.addWidget(badge)
         layout.addLayout(text_col, stretch=1)
@@ -381,12 +404,21 @@ class TodoPanelDialog(QDialog):
 
     # ------------------------------------------------------------ 行为
 
-    def _set_item_enabled(self, item_id: str, checked: bool) -> None:
+    def _set_item_done(self, item_id: str, checked: bool) -> None:
+        """勾选框行为（P11）：勾选=完成（停用提醒），取消=恢复启用。
+
+        调度、面板「下一条」摘要与灵动岛卡片计数都按 ``enabled`` 过滤，
+        所以这里联动改 ``enabled`` 就能同时让完成条目不再提醒、退出
+        「下一条」、也不计入灵动岛的待办计数——下游零改动。
+        触发戳保持原样：取消完成回到出窗时段会走既有的「出窗静默盖戳」
+        兼容，不会重发旧提醒。
+        """
         items = []
         for item in self._items():
             if item["id"] == item_id:
                 item = dict(item)
-                item["enabled"] = checked
+                item["done"] = checked
+                item["enabled"] = not checked
             items.append(item)
         self._persist_or_warn(items)
         self.reload_items()

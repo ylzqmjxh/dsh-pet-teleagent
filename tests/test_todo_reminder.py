@@ -98,13 +98,18 @@ def test_clean_dedupes_ids_and_caps_limit():
 def test_clean_preserves_slots_and_enabled():
     items = clean_todo_items([
         {"title": "A", "kind": "daily", "time": "10:00",
-         "enabled": False, "fired_due_slot": "2026-09-04T10:00#due"},
+         "enabled": False, "done": True, "fired_due_slot": "2026-09-04T10:00#due"},
     ])
     assert items[0]["enabled"] is False
+    assert items[0]["done"] is True  # P11：完成态在读写清洗后保留
     assert items[0]["fired_due_slot"] == "2026-09-04T10:00#due"
     # 非布尔的 enabled 一律回到默认 True（不猜字符串语义）
     items2 = clean_todo_items([{"title": "B", "kind": "daily", "time": "10:00", "enabled": "false"}])
     assert items2[0]["enabled"] is True
+    # 缺失/非法的 done 回默认 False（新建条目是空框）
+    assert items2[0]["done"] is False
+    items3 = clean_todo_items([{"title": "C", "kind": "daily", "time": "10:00", "done": "yes"}])
+    assert items3[0]["done"] is False
 
 
 # ------------------------------------------------------------ advance
@@ -680,17 +685,30 @@ def test_panel_add_persists_item(tmp_path):
 
 
 def test_panel_toggle_and_delete(tmp_path):
-    from PySide6.QtWidgets import QCheckBox, QPushButton
+    from PySide6.QtWidgets import QCheckBox, QLabel, QPushButton
 
     app, panel = _make_panel(tmp_path)
     item = new_todo_item("站会", "daily", "10:00")
     app.todo_service.set_items([item])
     panel.reload_items()
 
+    # P11 契约：新建条目是空白勾选框（未完成）；勾选=完成（done 且停用提醒）
     toggle = panel.findChild(QCheckBox, f"todoEnable_{item['id']}")
-    assert toggle is not None and toggle.isChecked()
+    assert toggle is not None and not toggle.isChecked()
     toggle.click()
-    assert app.todo_service.items()[0]["enabled"] is False
+    saved = app.todo_service.items()[0]
+    assert saved["done"] is True
+    assert saved["enabled"] is False  # 完成联动停用：调度/摘要/岛计数零改动即跳过
+    # 完成态渲染：标题与徽标都走删除线富文本
+    assert any(l.text().startswith("<s>") for l in panel.findChildren(QLabel))
+    assert TodoStore(todo_items_path(app.config.dir)).load()[0]["done"] is True
+
+    # 取消勾选=恢复未完成：done 清零并重新启用（行控件被 reload 重建，重新找）
+    toggle = panel.findChild(QCheckBox, f"todoEnable_{item['id']}")
+    toggle.click()
+    saved = app.todo_service.items()[0]
+    assert saved["done"] is False
+    assert saved["enabled"] is True
 
     panel.findChild(QPushButton, f"todoDelete_{item['id']}").click()
     assert app.todo_service.items() == []

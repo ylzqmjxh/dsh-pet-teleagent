@@ -68,6 +68,7 @@ def new_todo_item(title, kind, time_text, date_text: str = "") -> dict:
         "time": _normalize_hhmm(time_text) or DEFAULT_TODO_TIME,
         "date": "",
         "enabled": True,
+        "done": False,
         "fired_lead_slot": None,
         "fired_due_slot": None,
     }
@@ -95,6 +96,10 @@ def clean_todo_items(value) -> list[dict]:
             item["id"] = uuid.uuid4().hex
         seen_ids.add(item["id"])
         item["enabled"] = raw["enabled"] if isinstance(raw.get("enabled"), bool) else True
+        # done（个人化改造 P11）：面板勾选框的「完成」语义，与 enabled 联动——
+        # 完成时 enabled 同步置 False（调度/摘要/灵动岛计数按 enabled 过滤，
+        # 天然跳过已完成条目），取消勾选则恢复启用。
+        item["done"] = raw["done"] if isinstance(raw.get("done"), bool) else False
         for key in ("fired_lead_slot", "fired_due_slot"):
             slot = raw.get(key)
             item[key] = slot if isinstance(slot, str) and slot else None

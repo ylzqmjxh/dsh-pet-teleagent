@@ -603,12 +603,10 @@ def test_default_layout_populates_real_qmenu_hierarchy(monkeypatch):
         "DeepSeek 余额",
         "DeepSeek Harness",
         "打开网页版 DeepSeek",
-        "检查更新",
+        "查看最新动态",
         "网络信息",
-        "GitHub 项目页",
+        "GitHub 仓库",
     ]
-    if sys.platform == "win32":
-        expected_tools.append("夸克网盘下载")
     assert [action.text() for action in tools.actions() if not action.isSeparator()] == expected_tools
     # Harness 现在是子菜单（挂在既有 harness id 上，用户老布局无需迁移）：
     # 启动（双目标：dsh web 界面 / 桌面端界面）+ 重启 / 停止必须齐全——
