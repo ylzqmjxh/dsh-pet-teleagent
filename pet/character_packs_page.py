@@ -23,23 +23,19 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QProgressBar,
 
 from . import pack_download as pd
 from .settings_widgets import CollapsibleGroup, SettingsSection
-from .updater import REPO, _trusted_https_url
+from .updater import UPSTREAM_REPO, _trusted_https_url
 
 ENV_REGISTRY = "PET_PACK_REGISTRY"
 
-#: 官方角色包清单地址（按序尝试）。清单随仓库 main 分支更新——**发新素材包不需要
-#: 用户更新应用**（这是清单不内置的原因）。``PET_PACK_REGISTRY`` 环境变量仍可
-#: 整体覆盖（测试/自建源）。
-#:
-#: 链路设计（实机踩出来的）：jsdelivr 三镜像优先（国内拉小文件快，但新清单要等
-#: main 合并 + 缓存刷新，且偶发不可达）；**Release 资产地址兜底**（首次发布后就
-#: 永远存在，jsdelivr 404/不可达时用户不至于看到空页）。主清单以 main 为准，
-#: Release 副本由发布脚本同步（见 docs/PACK-PUBLISHING.md §3）。
+#: 官方角色包清单地址（按序尝试）。个人化改造 P6：素材资产源指回上游仓库
+#: （MerZlin/dsh-pet-indesktop 的角色包 Release 分发）——个人仓库无素材资产，
+#: 与更新模块的个人 REPO 分离互不影响。清单随上游 main 分支更新。
+#: ``PET_PACK_REGISTRY`` 环境变量仍可整体覆盖（测试/自建源）。
 DEFAULT_REGISTRY_URLS: tuple[str, ...] = (
-    f"https://cdn.jsdelivr.net/gh/{REPO}@main/packs-index.json",
-    f"https://fastly.jsdelivr.net/gh/{REPO}@main/packs-index.json",
-    f"https://gcore.jsdelivr.net/gh/{REPO}@main/packs-index.json",
-    f"https://github.com/{REPO}/releases/download/assets-v1/packs-index.json",
+    f"https://cdn.jsdelivr.net/gh/{UPSTREAM_REPO}@main/packs-index.json",
+    f"https://fastly.jsdelivr.net/gh/{UPSTREAM_REPO}@main/packs-index.json",
+    f"https://gcore.jsdelivr.net/gh/{UPSTREAM_REPO}@main/packs-index.json",
+    f"https://github.com/{UPSTREAM_REPO}/releases/download/assets-v1/packs-index.json",
 )
 
 

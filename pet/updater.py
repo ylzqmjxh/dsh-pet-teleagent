@@ -27,6 +27,9 @@ from . import __version__
 
 APP_VERSION = __version__
 REPO = 'ylzqmjxh/dsh-pet-teleagent'
+#: 上游项目仓库（个人化改造 P6）：角色包下载（character_packs_page/pack_download）
+#: 的素材资产仍来自原作者的 Release 分发，与更新模块的个人 REPO 分离互不影响
+UPSTREAM_REPO = 'MerZlin/dsh-pet-indesktop'
 RELEASE_API = f'https://api.github.com/repos/{REPO}/releases/latest'
 COMMITS_API = f'https://api.github.com/repos/{REPO}/commits'
 REPO_URL = f'https://github.com/{REPO}'
@@ -78,7 +81,11 @@ def _trusted_https_url(url: str) -> bool:
     host = parsed.hostname.lower().rstrip('.')
     if host in _TRUSTED_ASSET_HOSTS:
         if host == 'github.com':
-            return f'/{REPO}/' in parsed.path or parsed.path.startswith(f'/{REPO}/releases/')
+            # P6：允许个人仓库与上游仓库路径（角色包下载源指回上游素材资产）
+            return any(
+                f'/{repo}/' in parsed.path or parsed.path.startswith(f'/{repo}/releases/')
+                for repo in (REPO, UPSTREAM_REPO)
+            )
         return True
     return False
 
