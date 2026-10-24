@@ -23,9 +23,9 @@ from typing import Callable
 from . import __version__
 
 APP_VERSION = __version__
-# 个人化改造 P3：更新检查指向个人仓库（占位 GITHUB_USERNAME，上传后统一替换）；
+# 个人化改造 P3：更新检查指向个人仓库（占位 ylzqmjxh，上传后统一替换）；
 # 个人仓库无 release 时「检查更新」即显示已是最新，不会再拉原作者版本覆盖本地定制
-REPO = 'GITHUB_USERNAME/dsh-pet-teleagent'
+REPO = 'ylzqmjxh/dsh-pet-teleagent'
 RELEASE_API = f'https://api.github.com/repos/{REPO}/releases/latest'
 REPO_URL = f'https://github.com/{REPO}'
 QUARK_PAN_URL = 'https://pan.quark.cn/s/68fc681ae486'

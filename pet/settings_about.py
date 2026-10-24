@@ -12,13 +12,13 @@ from .context_menus.icons import vector_widget_icon
 from .settings_widgets import SettingsSection
 
 # --- 个人化改造 P3（20261023T193500Z）：项目信息分区（替代原“作者账号”区） ---
-#: 个人仓库地址（占位 GITHUB_USERNAME，上传后统一替换）
-REPO_URL = "https://github.com/GITHUB_USERNAME/dsh-pet-teleagent"
+#: 个人仓库地址（占位 ylzqmjxh，上传后统一替换）
+REPO_URL = "https://github.com/ylzqmjxh/dsh-pet-teleagent"
 
 PROJECT_INFO = (
     ("技术栈", "Python 3 + PySide6（Qt for Python）", ""),
     ("项目维护", "个人定制版（本地部署与深度定制）", ""),
-    ("个人仓库", "github.com/GITHUB_USERNAME/dsh-pet-teleagent", REPO_URL),
+    ("个人仓库", "github.com/ylzqmjxh/dsh-pet-teleagent", REPO_URL),
 )
 
 #: 二次开发致谢（公开合规：MIT LICENSE 保留 + 来源声明）
