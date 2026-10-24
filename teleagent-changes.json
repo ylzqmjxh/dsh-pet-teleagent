@@ -1,7 +1,15 @@
 {
   "changes": [
     {
+      "version": "20261024T015325Z",
+      "appVersion": "1.1.0",
+      "date": "2026-10-24",
+      "title": "个人化改造 P6：版本号统一（SemVer）与更新模块重构",
+      "detail": "版本号参照 GitHub 通行规范统一为 SemVer 并升 v1.1.0（代码=Git Tag=变更记录 appVersion 三方对齐，发布时打 tag 推送）；更新页重构：删「检查更新/下载并安装/本地变更记录」，新增「获取最新动态」（匿名拉取个人仓库最近提交）与「最新动态」卡；updater 重写（删安装包下载/校验/启动死链，保留角色包下载所需 https 工具）；右键菜单「检查更新」改「查看最新动态」（气泡播报最新提交）、「GitHub 项目页」改「GitHub 仓库」；UA 改 dsh-pet-teleagent"
+    },
+    {
       "version": "20261024T012657Z",
+      "appVersion": "1.0.0",
       "date": "2026-10-24",
       "title": "个人化改造 P5：迁移至独立工作空间 C:\\soft\\dsh-pet-teleagent",
       "detail": "项目从 TeleAgent 工作区整体迁出至独立目录（含 git 仓库）；同步更新技能脚本默认路径与文档路径引用；.gitignore 补回帧序列缓存排除（首跑派生产物不入库）；新路径启动桌宠与状态监视器验证通过"

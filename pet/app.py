@@ -325,25 +325,35 @@ class _UpdateBridge(_BackgroundResult):
         alive = self.parent is not None and shiboken6.isValid(self.parent)
         if not ok:
             if alive:
-                self.parent.show_bubble(f"检查更新失败：{payload}", duration_ms=7000)
+                self.parent.show_bubble(f"获取仓库动态失败：{payload}", duration_ms=7000)
             return
-        release = payload
-        tag = str(release.get("version", ""))
-        if not updater.is_newer(tag):
+        # 个人化改造 P6：payload = {commits, release}；无新版本时气泡播报最新提交
+        commits = (payload or {}).get("commits") or []
+        release = (payload or {}).get("release") or None
+        tag = str((release or {}).get("version") or "")
+        if release and tag and updater.is_newer(tag):
             if alive:
-                self.parent.show_bubble(f"已经是最新版本（{updater.APP_VERSION}）啦")
-            return
-        if alive:
-            self.parent.show_bubble(
-                f"发现新版本 v{tag}（当前 {updater.APP_VERSION}）。"
-                "正在打开“更新”页，可直接下载并安装。",
-                duration_ms=9000,
-            )
+                self.parent.show_bubble(
+                    f"发现新版本 v{tag}（当前 v{updater.APP_VERSION}）。"
+                    "正在打开“更新”页查看说明。",
+                    duration_ms=9000,
+                )
             owner = self.owner
             instance = getattr(owner, "instance", None) if owner is not None else None
             open_settings = getattr(instance, "open_modern_settings", None)
             if callable(open_settings):
                 QTimer.singleShot(0, lambda: open_settings(initial_page="更新"))
+            return
+        if commits:
+            latest = commits[0]
+            message = str(latest.get("message") or "")[:36]
+            if alive:
+                self.parent.show_bubble(
+                    f"仓库最新提交：{latest.get('sha', '')} {message}",
+                    duration_ms=7000,
+                )
+        elif alive:
+            self.parent.show_bubble(f"当前 v{updater.APP_VERSION}，暂拉不到仓库动态～", duration_ms=7000)
 
 
 # 批5.2 §③.7：多窗日志用 [slot-N] 前缀区分。单进程多窗共享一份日志文件，
@@ -4240,22 +4250,24 @@ class AppShell:
         self._update_checking = True
         target = parent or (self.instance.win if self.instance is not None else None)
         if target is not None:
-            target.show_bubble("正在检查更新…", duration_ms=6000)
+            target.show_bubble("正在获取仓库动态…", duration_ms=6000)
         bridge = _UpdateBridge(target, owner=self)
         self._update_bridge = bridge
         # 完成后放行下一次检查（无论成败）
         bridge.done.connect(lambda *_: setattr(self, "_update_checking", False))
 
         def worker() -> None:
+            # 个人化改造 P6：拉取最新提交 + 最新 Release（发现新版本才提示跳页）
             try:
+                commits = updater.latest_commits(limit=1)
                 release = updater.latest_release()
             except Exception as exc:
-                # 后台线程异常必须收口回 GUI，否则更新提示永远停在
-                # 「正在检查更新」（审查 P1-01）
-                logging.debug("检查更新失败", exc_info=True)
+                # 后台线程异常必须收口回 GUI，否则动态提示永远停在
+                # 「正在获取」（审查 P1-01）
+                logging.debug("获取仓库动态失败", exc_info=True)
                 bridge.done.emit(False, str(exc))  # 前缀由 _UpdateBridge._show 统一加
                 return
-            bridge.done.emit(bool(release), release or "无法连接更新服务，请稍后重试。")
+            bridge.done.emit(True, {"commits": commits, "release": release})
 
         threading.Thread(target=worker, daemon=True, name="pet-update-check").start()
 

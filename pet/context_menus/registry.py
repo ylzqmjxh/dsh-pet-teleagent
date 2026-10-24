@@ -86,7 +86,7 @@ ACTION_LABELS = {
     "quick_launch": "快捷启动", "balance": "DeepSeek 余额",
     "memory_trim": "回收内存",
     "harness": "启动 DeepSeek Harness", "deepseek_web": "打开网页版 DeepSeek",
-    "check_update": "检查更新", "github_project": "GitHub 项目页",
+    "check_update": "查看最新动态", "github_project": "GitHub 仓库",
     "agent_link": "Agent 联动",
     "proactive_screen": "主动识屏", "todo_panel": "待办提醒",
     "quiet_mode": "免打扰",
@@ -263,13 +263,13 @@ def _build_divination_draw(menu, pet):
 
 
 def _build_check_update(menu, pet):
-    return add_action(menu, "检查更新", "update", lambda: pet.on_check_update(pet), close_on_trigger=True)
+    return add_action(menu, "查看最新动态", "update", lambda: pet.on_check_update(pet), close_on_trigger=True)
 
 
 def _build_github(menu, _pet):
     return add_action(
         menu,
-        "GitHub 项目页",
+        "GitHub 仓库",
         "web",
         lambda: QDesktopServices.openUrl(QUrl(REPO_URL)),
         close_on_trigger=True,
