@@ -17,7 +17,7 @@
 
 手动方式：
 ```
-cd dsh-pet-indesktop
+cd C:\soft\dsh-pet-teleagent
 python -m pet
 ```
 
@@ -120,7 +120,7 @@ python teleagent_bridge.py working --tool online_search
 
 ## 交付目录
 
-`dsh-pet-indesktop/`
+`C:\soft\dsh-pet-teleagent\`（独立工作空间，含 git 仓库）
 - `启动桌宠.bat` —— 一键启动
 - `teleagent_bridge.py` —— TeleAgent 事件桥接器
 - `pet/` —— 桌宠主体（PySide6，含本地补丁 P1/P2）
