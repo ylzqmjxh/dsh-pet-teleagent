@@ -4010,6 +4010,51 @@ class AppShell:
                 return pm
         return None
 
+    def _island_todo_text(self) -> str:
+        """卡片「待办」文案（个人化改造 P10）：与待办提醒同源（todo_items*.json）。
+
+        合并主档案与 slot 档案，只计启用条目；显示条数与最近一条标题（8 字截断）。
+        """
+        import glob as _glob
+        base = getattr(self.config, "dir", None)
+        if not base:
+            return "无待办"
+        items: list[str] = []
+        seen: set[str] = set()
+        paths = [os.path.join(str(base), "todo_items.json")]
+        paths += _glob.glob(os.path.join(str(base), "todo_items-*.json"))
+        for path in paths:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    raw = json.load(f)
+            except (OSError, ValueError):
+                continue
+            entries = raw.get("items") if isinstance(raw, dict) else None
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict) or entry.get("enabled") is False:
+                    continue
+                title = str(entry.get("title") or "").strip()
+                item_id = str(entry.get("id") or title)
+                if not title or item_id in seen:
+                    continue
+                seen.add(item_id)
+                items.append(title)
+        if not items:
+            return "无待办"
+        latest = items[-1]
+        if len(latest) > 8:
+            latest = latest[:8] + "…"
+        return f"待办 {len(items)} 项·{latest}"
+
+    def _refresh_island_todo(self) -> None:
+        """把待办文案同步到岛卡片（面板关闭/卡片展开时调用）。"""
+        island = getattr(self, "island", None)
+        if island is None:
+            return
+        island.set_todo_info(self._island_todo_text())
+
     def _island_model_info(self) -> tuple[str, str]:
         """个人化改造 P9：卡片「模型接入」信息（替代 DeepSeek 余额峰谷的默认显示）。
 
@@ -4075,6 +4120,8 @@ class AppShell:
         if not feature_activation_mod.is_active("dynamic_island"):
             return
         island.set_balance_info(*self._island_model_info())
+        # 个人化改造 P10：卡片展开时一并刷新待办区
+        self._refresh_island_todo()
 
     # ------------------------------------------------------------ 余额
     def show_balance(self, parent=None) -> None:
@@ -4801,6 +4848,8 @@ class AppShell:
 
     def _todo_panel_finished(self, _result: int) -> None:
         self.todo_panel = None
+        # 个人化改造 P10：待办面板关闭即刷新岛卡片待办区
+        self._refresh_island_todo()
 
     def open_network_info(self) -> None:
         """打开「网络信息」弹窗（非模态单例；数据只在打开时取一次，不轮询）。"""

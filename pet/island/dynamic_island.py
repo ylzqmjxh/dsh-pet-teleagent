@@ -548,6 +548,8 @@ class DynamicIsland(QWidget):
         # 个人化改造 P9：该信息区改为「模型接入」展示（原 DeepSeek 余额/峰谷）
         self._balance_tier_text = "模型接入 --"
         self._balance_text = "未获取"
+        # 个人化改造 P10：卡片「待办」区默认文案
+        self._todo_text = "待办 --"
         self._pet_visible = True
         # 本构建是否具备聊天能力（AppShell 按 enable_chat 喂入，默认 True
         # 维持现状；纯桌宠版置 False 时 hidden_chat 单击路由回退展开卡片）
@@ -934,8 +936,14 @@ class DynamicIsland(QWidget):
         self._identity_provider = fn if callable(fn) else None
 
     def set_balance_info(self, tier_text: str, balance_text: str) -> None:
-        self._balance_tier_text = str(tier_text or "余额峰谷 --")
-        self._balance_text = str(balance_text or "余额 --")
+        self._balance_tier_text = str(tier_text or "模型接入 --")
+        self._balance_text = str(balance_text or "未获取")
+        self._sync_card_labels()
+        self._refresh()
+
+    def set_todo_info(self, todo_text: str) -> None:
+        """卡片「待办」区（个人化改造 P10）：与模型接入区同模式，展开即最新。"""
+        self._todo_text = str(todo_text or "无待办")
         self._sync_card_labels()
         self._refresh()
 
@@ -1956,6 +1964,17 @@ class DynamicIsland(QWidget):
         self._card_row_labels: list[tuple[QLabel, QLabel, QLabel]] = []
         self._card_rows_key: tuple | None = None
 
+        # ---- B' 待办区（个人化改造 P10）：智能体运行行之后、最近消息之前 ----
+        self._card_todo_box = QWidget(self._card_box)
+        todo_layout = QVBoxLayout(self._card_todo_box)
+        todo_layout.setContentsMargins(0, _CARD_SECTION_GAP, 0, 0)
+        todo_layout.setSpacing(0)
+        todo_layout.addWidget(_CardSeparator(self, self._card_todo_box))
+        todo_layout.addSpacing(_CARD_SECTION_GAP)
+        self._card_todo_label = QLabel(self._card_todo_box)
+        self._card_todo_label.setWordWrap(True)
+        todo_layout.addWidget(self._card_todo_label)
+
         # ---- C 最近消息（沿用现状内容：一行摘要、最多两行）----
         self._card_message_box = QWidget(self._card_box)
         message = QVBoxLayout(self._card_message_box)
@@ -1986,7 +2005,8 @@ class DynamicIsland(QWidget):
         actions.addLayout(button_row)
 
         for section in (self._card_overview, self._card_metrics,
-                        self._card_message_box, self._card_actions):
+                        self._card_todo_box, self._card_message_box,
+                        self._card_actions):
             layout.addWidget(section)
         self._card_box.hide()
         self._sync_card_labels()
@@ -2004,7 +2024,7 @@ class DynamicIsland(QWidget):
         # 字体走字号层（与胶囊同一份源）、颜色走主题函数：卡片不自己发明一套
         self._card_balance_label.setFont(self._font_for("primary"))
         for label in (self._card_tier_label, self._card_status_label,
-                      self._card_message_label):
+                      self._card_message_label, self._card_todo_label):
             label.setFont(self._font_for("aux"))
         self._apply_card_style(self._card_balance_label,
                                f"color: {primary_color.name()};")
@@ -2013,7 +2033,9 @@ class DynamicIsland(QWidget):
         self._apply_card_style(self._card_status_label,
                                f"color: {self._status_dot_color().name()};")
         self._apply_card_style(self._card_message_label,
-                               f"color: {secondary_color.name()};")
+                                f"color: {secondary_color.name()};")
+        self._apply_card_style(self._card_todo_label,
+                                f"color: {secondary_color.name()};")
         # 按钮：圆角 14px（= 按钮高 28 的一半）、accent 以 rgba 三档穿透做
         # 常态/悬停/按下——常态就是"淡底 + 描边"的次级按钮，不再是隐形按钮；
         # 按下（0.30）比悬停（0.20）更深，反馈不会落回次色灰而断档
@@ -2045,6 +2067,8 @@ class DynamicIsland(QWidget):
         self._sync_card_rows(rows, primary_color, secondary_color)
         # ---- C 最近消息（最多两行，超出右省略）----
         self._card_message_label.setText(self._card_message_display())
+        # ---- B' 待办（个人化改造 P10）----
+        self._card_todo_label.setText(self._todo_text)
         # ---- 各区固定高（账目的落点）----
         self._sync_card_heights(rows)
         self._card_status_dot.update()
@@ -2107,6 +2131,11 @@ class DynamicIsland(QWidget):
             return 0
         return 2 * _CARD_SECTION_GAP + _CARD_SEP_PX + count * self._card_row_height()
 
+    def _card_todo_height(self) -> int:
+        """B' 区高 = 分区间距×2 + 1px 分隔线 + 待办行高（个人化改造 P10）。"""
+        return (2 * _CARD_SECTION_GAP + _CARD_SEP_PX
+                + self._metrics_for("aux").lineSpacing())
+
     def _card_message_height(self, lines: int | None = None) -> int:
         """C 区高 = 上下各一档分区间距 + 1px 分隔线 + 消息行高（1..2 行）。"""
         count = self._card_message_lines() if lines is None else lines
@@ -2127,7 +2156,8 @@ class DynamicIsland(QWidget):
         """
         rows = self._card_metric_rows()
         total = (_CARD_MARGIN_TOP + self._card_overview_height()
-                 + self._card_metrics_height(rows) + self._card_message_height()
+                 + self._card_metrics_height(rows) + self._card_todo_height()
+                 + self._card_message_height()
                  + self._card_actions_height() + _CARD_MARGIN_BOTTOM)
         return total
 
@@ -2144,6 +2174,8 @@ class DynamicIsland(QWidget):
         self._card_metrics.setVisible(bool(rows))
         self._card_message_box.setFixedHeight(self._card_message_height(lines))
         self._card_message_label.setFixedHeight(lines * metrics.lineSpacing())
+        self._card_todo_box.setFixedHeight(self._card_todo_height())
+        self._card_todo_label.setFixedHeight(metrics.lineSpacing())
         self._card_actions.setFixedHeight(self._card_actions_height())
 
     def _card_row_baseline(self) -> int:
